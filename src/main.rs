@@ -118,7 +118,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for x in 0..img_to_show.width() {
         for y in 0..img_to_show.height() {
             if score[[y as usize, x as usize]] > 0 {
-                println!("{}", score[[y as usize, x as usize]]);
                 img_to_show.put_pixel(x, y, image::Rgb([255, 0, 0]))
             }
         }
