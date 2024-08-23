@@ -1,21 +1,15 @@
 use image::buffer::ConvertBuffer;
 use image::io::Reader as ImageReader;
-use image::{imageops, GenericImage, GenericImageView, GrayImage, Pixel, RgbImage};
-use ndarray::Array2;
-use ndarray::{array, Array, Zip};
+use image::{GrayImage, RgbImage};
+use ndarray::{s, array, Array, Array2, Zip};
 use ndarray_conv::*;
 use ndarray_ndimage::*;
 use ndarray_stats::*;
 use show_image;
 use std::env;
 use std::path;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
-
-struct Point {
-    x: u32,
-    y: u32,
-}
 
 fn read_image_rgb(file_path: &path::PathBuf) -> RgbImage {
     ImageReader::open(file_path)
@@ -31,6 +25,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let start = Instant::now();
     const DATA_DIR: &str = "data";
     const IMG_NAME: &str = "000000.png";
+    const MAX_KEYPOINTS: i32 = 200;
+    const SURP_SIZE: usize = 8;
 
     // let paths = data_path.read_dir().unwrap();
     // for file in paths {
@@ -61,23 +57,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .mapv(|x: u8| x as f32);
 
     // Get the derivatives in x and y
-    let i_x: Array2<f32> = img_to_arr
+    let mut i_x: Array2<f32> = img_to_arr
         .conv(&sobel_x, ConvMode::Valid, PaddingMode::Replicate)
         .expect("Failed to conv");
-    let i_y: Array2<f32> = img_to_arr
+    let mut i_y: Array2<f32> = img_to_arr
         .conv(&sobel_y, ConvMode::Valid, PaddingMode::Replicate)
         .expect("Failed to conv");
 
     let i_x_y = &i_x * &i_y;
 
-    let i_x_squared = i_x.map(|x| x.powf(2.0));
-    let i_y_squared = i_y.map(|x| x.powf(2.0));
+    i_x.par_mapv_inplace(|x| x.powf(2.0));
+    i_y.par_mapv_inplace(|x| x.powf(2.0));
 
     // Calculate elements of the second moment matrix
-    let mut i_x_sum = i_x_squared
+    let mut i_x_sum = i_x
         .conv(&ones_patch, ConvMode::Valid, PaddingMode::Replicate)
         .expect("Failed to conv");
-    let i_y_sum = i_y_squared
+    let i_y_sum = i_y
         .conv(&ones_patch, ConvMode::Valid, PaddingMode::Replicate)
         .expect("Failed to conv");
     let i_x_y_sum = i_x_y
@@ -87,40 +83,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Zip::from(&mut i_x_sum)
         .and(&i_y_sum)
         .and(&i_x_y_sum)
-        .for_each(|x, &y, &x_y| {
+        .par_for_each(|x, &y, &x_y| {
             *x = (*x * y) - x_y.powf(2.0) - (kappa * (*x + y).powf(2.0));
         });
 
     let pad_size = (patch_size / 2) + 1;
 
-    let padded = pad(&i_x_sum, &[[pad_size, pad_size]], PadMode::Constant(0.0));
+    let mut score = pad(&i_x_sum, &[[pad_size, pad_size]], PadMode::Constant(0.0));
 
-    let score_max = padded.max().unwrap();
-    let mut score_min = *padded.min().unwrap();
-
-    if score_min < 0.0 {
-        score_min = 0.0;
-    }
-
-    // TODO: Select keypoints with the strongest harris response values
-
-
-    let score = padded.mapv(|x| {
-        if x > 0.0 {
-            ((x) / (score_max - score_min) * u8::MAX as f32) as u8
-        } else {
-            0
-        }
-    });
-
+    let mut selected_keypoints_number = 0;
     let mut img_to_show = original_rgb_image;
 
-    for x in 0..img_to_show.width() {
-        for y in 0..img_to_show.height() {
-            if score[[y as usize, x as usize]] > 0 {
-                img_to_show.put_pixel(x, y, image::Rgb([255, 0, 0]))
-            }
-        }
+    // Perform non-maxima surpression around the highest responses
+    // and mark keypoints on the image
+    while &selected_keypoints_number < &MAX_KEYPOINTS {
+        let max_id: (usize, usize) = score.argmax().unwrap();
+        img_to_show.put_pixel(max_id.1 as u32, max_id.0 as u32, image::Rgb([255, 0, 0]));
+
+        score.slice_mut(s![max_id.0-SURP_SIZE..max_id.0+SURP_SIZE, max_id.1-SURP_SIZE..max_id.1+SURP_SIZE]).fill(0.0);
+
+        selected_keypoints_number += 1;
     }
 
     let duration = start.elapsed();
@@ -133,10 +115,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("Cannot set image!");
 
     // Print keyboard events until Escape is pressed, then exit.
-    // If the user closes the window, the channel is closed and the loop also exits.
     for event in window.event_channel()? {
         if let show_image::event::WindowEvent::KeyboardInput(event) = event {
-            println!("{:#?}", event);
             if event.input.key_code == Some(show_image::event::VirtualKeyCode::Escape)
                 && event.input.state.is_pressed()
             {

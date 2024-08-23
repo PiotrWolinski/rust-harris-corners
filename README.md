@@ -6,5 +6,9 @@ Code is not yet complete, but harris score works just fine.
 
 Todo:
 
-- [ ] Perform non-maximum surpression and establish keypoints  
-- [ ] Mark keypoints in some visible way on the image
+- [x] Perform non-maximum surpression and establish keypoints  
+- [x] Mark keypoints in some visible way on the image
+- [] Make keypoints more visible
+- [] Add keypoints descriptor for measuring similarity between them
+- [] Allow video as an input
+- [] Add option to use at as a CLI app
