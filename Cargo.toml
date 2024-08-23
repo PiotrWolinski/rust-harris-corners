@@ -13,3 +13,4 @@ ndarray-conv = "0.3.3"
 nshare = { version = "0.9.0", featuers=["image", "ndarray"]}
 ndarray-ndimage = "0.4"
 ndarray-stats = "0.5.1"
+rayon = "1.10.0"
