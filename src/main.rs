@@ -1,6 +1,6 @@
 use image::buffer::ConvertBuffer;
 use image::io::Reader as ImageReader;
-use image::{GrayImage, RgbImage};
+use image::{GrayImage, Rgb, RgbImage};
 use ndarray::{s, array, Array, Array2, Zip};
 use ndarray_conv::*;
 use ndarray_ndimage::*;
@@ -9,6 +9,8 @@ use show_image;
 use std::env;
 use std::path;
 use std::time::Instant;
+use rayon::prelude::*;
+use imageproc::drawing::draw_filled_circle_mut;
 
 
 fn read_image_rgb(file_path: &path::PathBuf) -> RgbImage {
@@ -27,6 +29,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     const IMG_NAME: &str = "000000.png";
     const MAX_KEYPOINTS: i32 = 200;
     const SURP_SIZE: usize = 8;
+    const RED:Rgb<u8> = image::Rgb([255, 0, 0]);
+    const KEYPOINT_RADIUS: i32 = 3;
 
     // let paths = data_path.read_dir().unwrap();
     // for file in paths {
@@ -98,7 +102,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // and mark keypoints on the image
     while &selected_keypoints_number < &MAX_KEYPOINTS {
         let max_id: (usize, usize) = score.argmax().unwrap();
-        img_to_show.put_pixel(max_id.1 as u32, max_id.0 as u32, image::Rgb([255, 0, 0]));
+        draw_filled_circle_mut(&mut img_to_show, (max_id.1 as i32, max_id.0 as i32), KEYPOINT_RADIUS, RED);
 
         score.slice_mut(s![max_id.0-SURP_SIZE..max_id.0+SURP_SIZE, max_id.1-SURP_SIZE..max_id.1+SURP_SIZE]).fill(0.0);
 

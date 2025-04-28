@@ -14,3 +14,4 @@ nshare = { version = "0.9.0", featuers=["image", "ndarray"]}
 ndarray-ndimage = "0.4"
 ndarray-stats = "0.5.1"
 rayon = "1.10.0"
+imageproc = "0.25.0"
