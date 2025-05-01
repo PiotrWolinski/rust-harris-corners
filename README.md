@@ -1,14 +1,18 @@
 # Harris corner detector in rust
 
-This is my first try on rust, so I'm just trying to check things out.  
+## Intro
 
-Code is not yet complete, but harris score works just fine.  
+This is my first project in Rust and even though I know how Harris corner detector works and how it should be implemented, it may not be the most appropriate way to do it *in Rust*. Feel free to point out anything that can make this tiny project better.
 
-Todo:
+Code is not by any means in its final shape, but the core functionality (harris score) works just fine.
+
+## Progress
 
 - [x] Perform non-maximum surpression and establish keypoints  
 - [x] Mark keypoints in some visible way on the image
-- [ ] Make keypoints more visible
+- [x] Make keypoints more visible
+- [ ] Add CLI to provide arguments to the app
+- [ ] Store the results of the detections for further operations on them
 - [ ] Add keypoints descriptor for measuring similarity between them
 - [ ] Allow video as an input
 - [ ] Add option to use at as a CLI app
