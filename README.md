@@ -11,7 +11,7 @@ Code is not by any means in its final shape, but the core functionality (harris 
 - [x] Perform non-maximum surpression and establish keypoints  
 - [x] Mark keypoints in some visible way on the image
 - [x] Make keypoints more visible
-- [ ] Add CLI to provide arguments to the app
+- [X] Add CLI to provide arguments to the app
 - [ ] Store the results of the detections for further operations on them
 - [ ] Add keypoints descriptor for measuring similarity between them
 - [ ] Allow video as an input
