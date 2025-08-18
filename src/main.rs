@@ -46,7 +46,7 @@ fn read_image_rgb(file_path: &path::PathBuf) -> RgbImage {
         .to_rgb8()
 }
 
-fn run_harris(img: GrayImage, surp_size: &usize, patch_size: &usize, max_keypoints: &usize, kappa: &f32) -> Vec<(usize, usize)>{
+fn run_harris(img: &GrayImage, surp_size: &usize, patch_size: &usize, max_keypoints: &usize, kappa: &f32) -> Vec<(usize, usize)>{
     let img_width = &img.width();
     let img_height = &img.height();
     let sobel_x = array![[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]].mapv(|x| x as f32);
@@ -132,36 +132,52 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let original_rgb_image = read_image_rgb(&data_path);
     let original_image: GrayImage = original_rgb_image.clone().convert();
     
-    let t0 = Instant::now();
-    let selected_keypoints = run_harris(original_image, &args.surpression_window, &args.patch_size, &args.max_keypoints, &args.kappa);
-    let duration = t0.elapsed();
+    let mut total_time = 0.0;
+    let mut selected_keypoints: Option<Vec<(usize, usize)>> = None;
+    for _ in 0..args.num_runs {
+        let t0 = Instant::now();
+        selected_keypoints = Some(run_harris(&original_image, &args.surpression_window, &args.patch_size, &args.max_keypoints, &args.kappa));
+        let duration = t0.elapsed();
+        total_time += duration.as_secs_f32();
+    }
     
     let mut img_to_show = original_rgb_image;
+    let mut show_image = false;
 
-    for keypoint in selected_keypoints {
-        draw_filled_circle_mut(
-            &mut img_to_show,
-            (keypoint.1 as i32, keypoint.0 as i32),
-            args.keypoint_radius,
-            RED,
-        );
+    match selected_keypoints {
+        Some(keypoints) => {
+            for keypoint in keypoints {
+                draw_filled_circle_mut(
+                    &mut img_to_show,
+                    (keypoint.1 as i32, keypoint.0 as i32),
+                    args.keypoint_radius,
+                    RED,
+                );
+            }
+            show_image = true;
+        },
+        None => println!("No keypoints detected, skipping showing of the image.")
     }
 
-    println!("Harris corners computation took {:?}", duration);
+    let avg_runtime = total_time / args.num_runs as f32;
 
-    let window =
-        show_image::create_window("image", Default::default()).expect("Cannot create window!");
-    window
-        .set_image("image-window", img_to_show)
-        .expect("Cannot set image!");
+    println!("Harris corners computation took {:?} s on average during {:?} runs.", avg_runtime, args.num_runs);
 
-    // Print keyboard events until Escape is pressed, then exit.
-    for event in window.event_channel()? {
-        if let show_image::event::WindowEvent::KeyboardInput(event) = event {
-            if event.input.key_code == Some(show_image::event::VirtualKeyCode::Escape)
-                && event.input.state.is_pressed()
-            {
-                break;
+    if show_image {
+        let window =
+            show_image::create_window("image", Default::default()).expect("Cannot create window!");
+        window
+            .set_image("image-window", img_to_show)
+            .expect("Cannot set image!");
+    
+        // Print keyboard events until Escape is pressed, then exit.
+        for event in window.event_channel()? {
+            if let show_image::event::WindowEvent::KeyboardInput(event) = event {
+                if event.input.key_code == Some(show_image::event::VirtualKeyCode::Escape)
+                    && event.input.state.is_pressed()
+                {
+                    break;
+                }
             }
         }
     }
